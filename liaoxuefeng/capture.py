@@ -10,7 +10,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/5
     'Accept-Charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
     'Accept-Encoding':'gzip',
     'Connection':'close',
-    'Referer':None #注意如果依然不能抓取的话，这里可以设置抓取网站的host
+    'Referer':None #如果依然不能抓取的话，这里可以设置抓取网站的host
 }
 pattern_css = re.compile(r'.*<link.*href.*=.*".*\.css".*')
 pattern_img = re.compile(r'.*<img.*src.*=.*".*".*')
@@ -18,12 +18,17 @@ pattern_page = re.compile(r'.*<a.*href.*=.*".*".*')
 pattern_start = re.compile(r'<div.*id.*=.*main.*')
 exist_files = set([])
 summary = {}
-def log(t, fname):
-    print('Downloading', t, 'file:', fname, '...');
-    if t in summary:
-        summary[t] += 1
+def log(t, name):
+    if t == 'directory':
+        print('Making directory:', name)
+    elif t == 'rename':
+        print('Rename from %s to %s' % name)
     else:
-        summary[t] = 0
+        print('Downloading', t, 'file:', name, '...');
+        if t in summary:
+            summary[t] += 1
+        else:
+            summary[t] = 0
 def get_page_elem(fname):
     start_css = False
     start_img = False
@@ -42,8 +47,10 @@ def get_page_elem(fname):
             if file_css not in exist_files:
                 req = requests.get(base + file_css, headers = headers)
                 exist_files.add(file_css)
-                if not os.path.exists(os.path.split('./' + file_css)[0]):
-                    os.makedirs(os.path.split('./' + file_css)[0])
+                directory = os.path.relpath(os.path.dirname('./' + file_css))
+                if not os.path.exists(directory):
+                    log('directory', directory)
+                    os.makedirs(directory)
                 if not os.path.isdir('./' + file_css):
                     log('css', file_css)
                     with open('./' + file_css, 'w') as fw:
@@ -53,8 +60,10 @@ def get_page_elem(fname):
             if file_img not in exist_files and not file_img.startswith('http'):
                 req = requests.get(base + file_img, headers = headers)
                 exist_files.add(file_img)
-                if not os.path.exists(os.path.split('./' + file_img)[0]):
-                    os.makedirs(os.path.split('./' + file_img)[0])
+                directory = os.path.relpath(os.path.dirname('./' + file_img))
+                if not os.path.exists(directory):
+                    log('directory', directory)
+                    os.makedirs(directory)
                 if not os.path.isdir('./' + file_img):
                     log('img', file_img)
                     with open('./' + file_img, 'wb') as fw:
@@ -78,12 +87,17 @@ def get_all_pages(fname):
             if file_page not in exist_files and not file_page.startswith('javascript:') and not file_page.startswith('http'):
                 req = requests.get(base + file_page, headers = headers)
                 exist_files.add(file_page)
-                if os.path.exists(os.path.split('./' + file_page)[0]):
-                    if not os.path.isdir(os.path.split('./' + file_page)[0]):
-                        os.rename(os.path.split('./' + file_page)[0], os.path.join(os.path.split(os.path.split('.' + file_page)[0])[0], 'index.html'))
-                        os.makedirs(os.path.split('./' + file_page)[0])
+                directory = os.path.relpath(os.path.dirname('./' + file_page))
+                if os.path.exists(directory):
+                    if not os.path.isdir(directory):
+                        new_name = os.path.join(os.path.dirname(os.path.dirname('.' + file_page)), 'index.html')
+                        log('rename', (directory, new_name))
+                        os.rename(directory, new_name)
+                        log('directory', directory)
+                        os.makedirs(directory)
                 else:
-                    os.makedirs(os.path.split('./' + file_page)[0])
+                    log('directory', directory)
+                    os.makedirs(directory)
                 if not os.path.isdir('./' + file_page):
                     log('page', file_page)
                     with open('./' + file_page, 'w') as fw:
@@ -91,6 +105,10 @@ def get_all_pages(fname):
                     get_page_elem('./' + file_page)
     fr.close()
 if __name__ == '__main__':
+    req = requests.get(base + '/wiki/' + entry, headers = headers)
+    log('page', entry)
+    with open('./' + entry, 'w') as fw:
+        fw.write(req.text)
     get_all_pages(entry)
     print('Done!')
     print('Total:')
