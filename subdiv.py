@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # 用于把shadowsocks的配置文件gui-config.json分割成单个节点的配置文件
+# 格式：subdiv.py source_file target_dir
 import sys
 import os
 import json
